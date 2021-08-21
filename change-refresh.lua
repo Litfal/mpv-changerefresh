@@ -62,6 +62,9 @@ local options = {
     --change refresh automatically on startup
     auto = false,
 
+    -- change refresh automatically on fullscreen
+    auto_on_fs = false,
+
     --duration (in seconds) of the pause when changing display modes
     --set to zero to disable video pausing
     pause = 3,
@@ -488,6 +491,14 @@ function autoChange()
     end
 end
 
+function autoChange_on_fs_change(name, value)
+    if value and options.auto_on_fs then
+        msg.verbose('automatically changing on fullscreen')
+        matchVideo()
+    end
+end
+
+
 function scriptMessage(width, height, rate, display)
     local name
     if display == nil then
@@ -523,6 +534,9 @@ mp.register_script_message("change-refresh", scriptMessage)
 
 --runs the script automatically on startup if option is enabled
 mp.register_event('file-loaded', autoChange)
+
+--runs the script automatically on fullscreen.
+mp.observe_property("fullscreen", "bool", autoChange_on_fs_change)
 
 --reverts refresh on mpv shutdown
 mp.register_event("shutdown", revertRefresh)
