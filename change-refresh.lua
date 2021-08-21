@@ -83,6 +83,7 @@ local options = {
     --set whether to use the estimated fps or the container fps
     --see https://mpv.io/manual/master/#command-interface-container-fps for details
     estimated_fps = false,
+	use_estimated_fps_when_container_fps_is_unavailable = true,
 
     --automatically detect monitor resolution when changing refresh rates
     --will use this resolution when reverting changes
@@ -439,7 +440,14 @@ function matchVideo()
     if (options.estimated_fps == true) then
         var.new_fps = mp.get_property_number('estimated-vf-fps', 0)
     else
-        var.new_fps = mp.get_property_number('container-fps', 0)
+        local cfps = mp.get_property_native('container-fps')
+        if cfps == nil then
+            cfps = 0
+            if options.use_estimated_fps_when_container_fps_is_unavailable then
+                cfps = mp.get_property_number('estimated-vf-fps', 0)
+            end
+        end
+        var.new_fps = cfps
     end
 
     var.new_width, var.new_height = getModifiedWidthHeight(var.new_width, var.new_height)
