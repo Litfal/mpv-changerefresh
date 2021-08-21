@@ -62,8 +62,15 @@ local options = {
     --change refresh automatically on startup
     auto = false,
 
-    -- change refresh automatically on fullscreen
+    --change refresh automatically on fullscreen
     auto_on_fs = false,
+
+    --pick the closest multiple rate if true
+    --for examples:
+    --  rates = "23;60", and video fps is 30
+    --  it will change to 60 if pick_closest_multiple_rate
+    --  otherwise it will change to 30 because that is the closest one.
+    pick_closest_multiple_rate = true,
 
     --duration (in seconds) of the pause when changing display modes
     --set to zero to disable video pausing
@@ -386,6 +393,31 @@ function findValidRate(rate)
     return closestRate
 end
 
+--picks which whitelisted rate to switch the monitor to
+function findClosestMultipleRate(rate)
+    msg.verbose('searching for closest multiple rate to ' .. rate)
+
+    local smallestDiff = 100000
+    local selectRate = 0
+
+    rate = tonumber(rate)
+    --picks the fps which is closest the mulitple of target rate.
+    for i = 1, #var.rateList, 1 do
+        local ratio = var.rateList[i] / rate
+        local ratio_round = math.floor(ratio+0.5)
+        local diff = math.abs(ratio - ratio_round)
+        msg.debug('ratio of ' .. rate .. ' and ' .. var.rateList[i] .. ' = ' .. ratio .. ", diff = " .. diff)
+
+        if diff < smallestDiff then
+            smallestDiff = diff
+            selectRate = var.rateList[i]
+        end
+    end
+    msg.verbose('select rate is ' .. selectRate .. ', saving...')
+
+    return selectRate
+end
+
 --executes commands to switch monior to video refreshrate
 function matchVideo()
     --gets display details
@@ -409,13 +441,18 @@ function matchVideo()
     else
         var.new_fps = mp.get_property_number('container-fps', 0)
     end
-    
-    --Floor is used because 23fps video has an actual framerate of ~23.9, this occurs across many video rates
-    var.new_fps = math.floor(var.new_fps)
+
     var.new_width, var.new_height = getModifiedWidthHeight(var.new_width, var.new_height)
 
-    --picks which whitelisted rate to switch the monitor to based on the video rate
-    var.new_fps = findValidRate(var.new_fps)
+    if options.pick_closest_multiple_rate then
+        var.new_fps = findClosestMultipleRate(var.new_fps)
+    else
+        --Floor is used because 23fps video has an actual framerate of ~23.9, this occurs across many video rates
+        var.new_fps = math.floor(var.new_fps)
+
+        --picks which whitelisted rate to switch the monitor to based on the video rate
+        var.new_fps = findValidRate(var.new_fps)
+    end
 
     --if beenReverted=true, then the current display settings may not be saved
     if (var.beenReverted == true) then
